@@ -3,62 +3,63 @@ const multer = require("multer");
 const cors = require("cors");
 const docxToPDF = require("docx-pdf");
 const path = require("path");
+const fs = require("fs");
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 app.use(cors());
 
-// settting up the file storage
+// ✅ Ensure 'uploads' and 'files' folders exist (important for Render)
+const uploadsDir = path.join(__dirname, "uploads");
+const filesDir = path.join(__dirname, "files");
+
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir);
+}
+if (!fs.existsSync(filesDir)) {
+    fs.mkdirSync(filesDir);
+}
+
+// ✅ Multer storage setup
 const storage = multer.diskStorage({
-    destination: function(req, file, cb) {
-        cb(null, "uploads");
+    destination: function (req, file, cb) {
+        cb(null, uploadsDir);
     },
-    filename: function(req, file, cb) {
+    filename: function (req, file, cb) {
         cb(null, file.originalname);
     },
 });
 
 const upload = multer({ storage: storage });
-app.post("/convertFile", upload.single("file"), (req, res, next) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({
-                message: "No file  uploaded",
-            });
-        }
-        // Defining outout file path
-        let outoutPath = path.join(
-            __dirname,
-            "files",
-            `${req.file.originalname}.pdf`
-        );
-        docxToPDF(req.file.path, outoutPath, (err, result) => {
-            if (err) {
-                console.log(err);
-                return res.status(500).json({
-                    message: "Error converting docx to pdf",
-                });
-            }
-            res.download(outoutPath, () => {
-                console.log("file downloaded");
-            });
-        });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({
-            message: "Internal server error",
-        });
+
+// ✅ File conversion route
+app.post("/convertFile", upload.single("file"), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
     }
+
+    const inputPath = req.file.path;
+    const outputPath = path.join(filesDir, `${req.file.originalname}.pdf`);
+
+    docxToPDF(inputPath, outputPath, (err, result) => {
+        if (err) {
+            console.error("Conversion error:", err);
+            return res.status(500).json({ message: "Error converting docx to pdf" });
+        }
+
+        res.download(outputPath, () => {
+            console.log("✅ PDF sent successfully.");
+        });
+    });
 });
 
-app.get("/",(req, res) => {
-    res.send(" Server is ");
+// ✅ Test route
+app.get("/", (req, res) => {
+    res.send("✅ Backend is running.");
 });
 
+// ✅ Start server
 app.listen(port, () => {
-    console.log(`Server is listening on port ${port}`);
+    console.log(`🚀 Server is listening on port ${port}`);
 });
-
-//npm install -D tailwindcss postcss autoprefixer
-//npx tailwindcss init -p
