@@ -21,7 +21,7 @@ function Home() {
     formData.append("file", selectedFile);
     try {
      const response = await axios.post(
-  "http://localhost:3000/convertFile",
+  "https://quickpdf-backend.onrender.com/convertFile",
   formData,
   {
     responseType: "blob",
