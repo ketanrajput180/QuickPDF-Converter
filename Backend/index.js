@@ -3,7 +3,6 @@ const multer = require("multer");
 const cors = require("cors");
 const docxToPDF = require("docx-pdf");
 const path = require("path");
-const fs = require("fs");
 
 const app = express();
 const port = 3000;
@@ -55,4 +54,8 @@ app.post("/convertFile", upload.single("file"), (req, res, next) => {
 
 app.listen(port, () => {
     console.log(`Server is listening on port ${port}`);
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> 209ded2c1fe41d2a97178a90f33d1ed5453f8e72
