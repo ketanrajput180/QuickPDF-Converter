@@ -1,109 +1,140 @@
 import React, { useState } from "react";
-import { FaFileWord } from "react-icons/fa";
+import { FaCloudUploadAlt, FaCheckCircle } from "react-icons/fa";
 import axios from "axios";
 
 function Home() {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [convert, setConvert] = useState("");
-  const [downloadError, setDownloadError] = useState("");
+  const [convertStatus, setConvertStatus] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [isConverting, setIsConverting] = useState(false);
 
   const handleFileChange = (e) => {
-    // console.log(e.target.files[0]);
-    setSelectedFile(e.target.files[0]);
-  };
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (!selectedFile) {
-      setConvert("Please select a file");
-      return;
+    const file = e.target.files[0];
+    if (file) {
+      const validTypes = [".doc", ".docx", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      if (!validTypes.includes(`.${fileExtension}`) && !validTypes.includes(file.type)) {
+        setConvertStatus("❌ Please upload a valid Word document (.doc or .docx)");
+        setSelectedFile(null);
+        return;
+      }
+      setSelectedFile(file);
+      setConvertStatus("");
     }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileChange({ target: { files: [file] } });
+  };
+
+  const handleDragOver = (e) => e.preventDefault();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+
+    setIsConverting(true);
+    setProgress(30);
+    setConvertStatus("");
+
     const formData = new FormData();
     formData.append("file", selectedFile);
-    try {
-     const response = await axios.post(
-  "https://quickpdf-backend.onrender.com/convertFile",
-  formData,
-  {
-    responseType: "blob",
-  }
-);
 
-      console.log(response.data);
+    try {
+      const response = await axios.post("http://localhost:3000/convertFile", formData, { responseType: "blob", timeout: 30000 });
+      setProgress(80);
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      console.log(url);
       const link = document.createElement("a");
-      console.log(link);
       link.href = url;
-      console.log(link);
-      link.setAttribute(
-        "download",
-        selectedFile.name.replace(/\.[^/.]+$/, "") + ".pdf"
-      );
-      console.log(link);
+      link.setAttribute("download", selectedFile.name.replace(/\.[^/.]+$/, "") + ".pdf");
       document.body.appendChild(link);
-      console.log(link);
       link.click();
-      link.parentNode.removeChild(link);
-      setSelectedFile(null);
-      setDownloadError("");
-      setConvert("File Converted Successfully");
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setProgress(100);
+      setTimeout(() => {
+        setIsConverting(false);
+        setProgress(0);
+        setSelectedFile(null);
+      }, 1000);
+
+      setConvertStatus("File Converted Successfully");
+
+      import("canvas-confetti").then((confetti) => {
+        confetti.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+      });
     } catch (error) {
-      console.log(error);
-      if (error.response && error.response.status == 400) {
-        setDownloadError("Error occurred: ", error.response.data.message);
-      } else {
-        setConvert("");
-      }
+      console.error(error);
+      setConvertStatus("❌ Something went wrong");
+      setIsConverting(false);
+      setProgress(0);
     }
   };
-  return (
-    <>
-      <div className="max-w-screen-2xl mx-auto container px-6 py-3 md:px-40">
-        <div className="flex h-screen items-center justify-center">
-          <div className="border-2 border-dashed px-4 py-2 md:px-8 md:py-6 border-indigo-400 rounded-lg shadow-lg">
-            <h1 className="text-3xl font-bold text-center mb-4">
-              Convert Word to PDF Online
-            </h1>
-            <p className="text-sm text-center mb-5">
-              Easily convert Word documents to PDF format online, without having
-              to install any software.
-            </p>
 
-            <div className="flex flex-col items-center space-y-4">
-              <input
-                type="file"
-                accept=".doc,.docx"
-                onChange={handleFileChange}
-                className="hidden"
-                id="FileInput"
-              />
-              <label
-                htmlFor="FileInput"
-                className="w-full flex items-center justify-center px-4 py-6 bg-gray-100 text-gray-700 rounded-lg shadow-lg cursor-pointer border-blue-300 hover:bg-blue-700 duration-300 hover:text-white"
-              >
-                <FaFileWord className="text-3xl mr-3" />
-                <span className="text-2xl mr-2 ">
-                  {selectedFile ? selectedFile.name : "Choose File"}
-                </span>
-              </label>
-              <button
-                onClick={handleSubmit}
-                disabled={!selectedFile}
-                className="text-white bg-blue-500 hover:bg-blue-700 disabled:bg-gray-400 disabled:pointer-events-none duration-300 font-bold px-4 py-2 rounded-lg"
-              >
-                Convert File
-              </button>
-              {convert && (
-                <div className="text-green-500 text-center">{convert}</div>
-              )}
-              {downloadError && (
-                <div className="text-red-500 text-center">{downloadError}</div>
-              )}
-            </div>
+  return (
+    <div className="w-full px-4">
+      <div className="backdrop-blur-xl bg-white/40 border border-white/50 shadow-2xl rounded-2xl p-8 w-full max-w-lg transition-all duration-500 hover:shadow-green-300/50 mx-auto">
+
+        <h1 className="text-3xl font-extrabold text-center mb-4 tracking-tight">
+          Word <span className="text-green-600">To</span> PDF Converter
+        </h1>
+
+        <p className="text-sm text-center text-gray-600 mb-6">
+          Drag & Drop or Upload Word Files — Fast, Secure & Free
+        </p>
+
+        <label
+          htmlFor="fileInput"
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          className="cursor-pointer flex flex-col items-center justify-center border-2 border-dashed border-green-400 rounded-xl p-8 bg-white/60 hover:bg-green-50 transition-all duration-300"
+        >
+          <FaCloudUploadAlt className="text-4xl mb-3 text-green-500" />
+          <span className="text-lg font-semibold text-center">
+            {selectedFile ? selectedFile.name : "Upload or Drag File Here"}
+          </span>
+          {selectedFile && (
+            <span className="text-xs mt-1 text-gray-600">
+              {(selectedFile.size / 1024).toFixed(1)} KB
+            </span>
+          )}
+          <input
+            type="file"
+            id="fileInput"
+            accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </label>
+
+        <button
+          onClick={handleSubmit}
+          disabled={!selectedFile || isConverting}
+          className="mt-6 w-full py-3 bg-green-500 text-white font-bold rounded-xl text-lg transition-all duration-300 hover:bg-green-600 hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-95"
+        >
+          {isConverting ? "Converting..." : "Convert to PDF"}
+        </button>
+
+        {isConverting && (
+          <div className="w-full bg-gray-200 h-2 rounded-full mt-4 overflow-hidden">
+            <div className="bg-green-500 h-2 transition-all duration-300 rounded-full" style={{ width: `${progress}%` }}></div>
           </div>
-        </div>
+        )}
+
+        {convertStatus && (
+          <div className={`flex justify-center items-center gap-2 font-semibold mt-4 text-center ${
+            convertStatus.includes("❌") ? "text-red-600" : "text-green-600"
+          }`}>
+            {convertStatus.includes("Successfully") && <FaCheckCircle />} 
+            {convertStatus}
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
 
