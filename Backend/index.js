@@ -1,12 +1,15 @@
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
-const docxToPDF = require("docx-pdf");
 const path = require("path");
 const fs = require("fs");
 
+// ✅ Add these packages
+const mammoth = require("mammoth");
+const pdf = require("html-pdf");
+
 const app = express();
-const port = process.env.PORT || 3000; // ✅ Render-friendly port
+const port = process.env.PORT || 3000; // Render-friendly port
 
 app.use(cors());
 
@@ -24,7 +27,7 @@ if (!fs.existsSync(uploadDir)) {
 // Multer storage configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadDir); // ✅ store uploads in /tmp
+    cb(null, uploadDir); // store uploads in /tmp
   },
   filename: function (req, file, cb) {
     cb(null, file.originalname);
@@ -40,20 +43,29 @@ app.post("/convertFile", upload.single("file"), (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // Output path in /tmp
     const outputPath = path.join("/tmp", `${req.file.originalname}.pdf`);
 
-    docxToPDF(req.file.path, outputPath, (err, result) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Error converting docx to pdf" });
-      }
+    // 🔹 Replace docxToPDF with mammoth + html-pdf
+    mammoth.extractRawText({ path: req.file.path })
+      .then(result => {
+        const html = `<pre>${result.value}</pre>`; // simple HTML from DOCX text
 
-      // Send the PDF file as download
-      res.download(outputPath, () => {
-        console.log("File downloaded successfully");
+        pdf.create(html).toFile(outputPath, (err, resPdf) => {
+          if (err) {
+            console.error(err);
+            return res.status(500).json({ message: "Error converting docx to pdf" });
+          }
+
+          res.download(outputPath, () => {
+            console.log("File downloaded successfully");
+          });
+        });
+      })
+      .catch(err => {
+        console.error(err);
+        res.status(500).json({ message: "Internal server error" });
       });
-    });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
