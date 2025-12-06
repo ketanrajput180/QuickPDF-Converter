@@ -10,6 +10,11 @@ const port = process.env.PORT || 3000; // ✅ Render-friendly port
 
 app.use(cors());
 
+// Root route for testing
+app.get("/", (req, res) => {
+  res.send("QuickPDF Backend is running!");
+});
+
 // Ensure /tmp/uploads exists
 const uploadDir = "/tmp/uploads";
 if (!fs.existsSync(uploadDir)) {
