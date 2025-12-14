@@ -43,7 +43,7 @@ function Home() {
     formData.append("file", selectedFile);
 
     try {
-      const response = await axios.post("http://localhost:3000/convertFile", formData, { responseType: "blob", timeout: 30000 });
+      const response = await axios.post("https://quickpdf-backend.onrender.com", formData, { responseType: "blob", timeout: 30000 });
       setProgress(80);
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
